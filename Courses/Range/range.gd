@@ -3616,14 +3616,10 @@ func get_address_camera_position(ball_pos: Vector3, rot_y: float, override_is_on
 	
 	if is_on_green:
 		var green_offset = Vector3(-1.35, 0.8, 0.0).rotated(Vector3.UP, rot_y)
-		if is_aiming:
-			return ball_pos + green_offset
 		return clamp_camera_position(ball_pos + green_offset)
 		
 	if is_sky_view_active:
 		var sky_offset = Vector3(-50.0, 15.0, 0.0).rotated(Vector3.UP, rot_y)
-		if is_aiming:
-			return ball_pos + sky_offset
 		return clamp_camera_position(ball_pos + sky_offset)
 	
 	var default_dist = GlobalSettings.range_settings.camera_distance.value
@@ -3635,12 +3631,11 @@ func get_address_camera_position(ball_pos: Vector3, rot_y: float, override_is_on
 	var back_dir = Vector3(-1.0, 0.0, 0.0).rotated(Vector3.UP, rot_y)
 	
 	var default_cam_pos = ball_pos + back_dir * default_dist + Vector3.UP * default_height
-	
-	# If on flat driving range or actively aiming, use smooth default (prevents raycast spikes and distance popping)
-	if is_driving_range or is_aiming:
-		return default_cam_pos
-
 	var clamped_default = clamp_camera_position(default_cam_pos)
+	
+	# Keep aim updates responsive without allowing the camera to pass below sloped terrain.
+	if is_driving_range or is_aiming:
+		return clamped_default
 
 	var is_sand = is_ball_in_sand(ball_pos)
 	var terrain_at_default = get_height(clamped_default.x, clamped_default.z)

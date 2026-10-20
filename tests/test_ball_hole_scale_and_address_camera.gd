@@ -96,6 +96,13 @@ func test_address_camera_distance() -> void:
 	assert(is_equal_approx(aiming_cam_pos.y, expected_height), "Aiming address camera Y should match expected height")
 	print("  PASS: get_address_camera_position with is_aiming=true returns smooth camera position.")
 
+	# Aim updates must still keep the camera above terrain on steep slopes.
+	var below_grade_ball_pos = Vector3(0.0, -2.0, 0.0)
+	var below_grade_aiming_cam = range_instance.get_address_camera_position(below_grade_ball_pos, rot_yaw, false, true)
+	var terrain_height = range_instance.get_height(below_grade_aiming_cam.x, below_grade_aiming_cam.z)
+	assert(below_grade_aiming_cam.y >= terrain_height + 0.35 - 0.0001, "Aiming camera must stay above terrain clearance")
+	print("  PASS: Aiming address camera remains above terrain when the default offset would clip below ground.")
+
 	range_instance.queue_free()
 
 
