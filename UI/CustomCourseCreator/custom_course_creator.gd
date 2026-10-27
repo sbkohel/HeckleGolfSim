@@ -37,6 +37,8 @@ func _exit_tree() -> void:
 	if _build_thread != null and _build_thread.is_alive():
 		_build_thread.wait_to_finish()
 		_build_thread = null
+	if has_node("/root/UIFocusGuard"):
+		get_node("/root/UIFocusGuard").pop_lock(self)
 
 
 func _ready() -> void:
@@ -554,8 +556,3 @@ func _load_texture(path: String) -> Texture2D:
 	if img != null:
 		return ImageTexture.create_from_image(img)
 	return null
-
-
-func _exit_tree() -> void:
-	if has_node("/root/UIFocusGuard"):
-		get_node("/root/UIFocusGuard").pop_lock(self)

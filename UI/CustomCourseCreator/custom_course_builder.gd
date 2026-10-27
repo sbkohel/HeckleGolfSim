@@ -586,7 +586,7 @@ static func _extract_hole_geometry(
 			var pos := Vector3(float(rec[0]), float(rec[1]), float(rec[2]))
 			var dist := _get_distance_to_hole_info(pos, source_hole_data)
 			if dist <= 70.0 and _is_closest_to_hole(pos, source_hole_key, all_source_holes, dist):
-				var rel_vec := pos - src_tee_3d
+				var rel_vec: Vector3 = pos - src_tee_3d
 				var rot_vec := rel_vec.rotated(Vector3.UP, angle)
 				var target_pos := target_tee_pos + rot_vec
 				tree_positions.append(Vector2(target_pos.x, target_pos.z))

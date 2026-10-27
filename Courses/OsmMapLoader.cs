@@ -682,10 +682,16 @@ public partial class OsmMapLoader : Node
         return TryLoadPrepackagedGeometryAsync(courseName).GetAwaiter().GetResult();
     }
 
-    private static void TrySaveUserCachedGeometry(string courseName, string json)
+    private void TrySaveUserCachedGeometry(string courseName, string json, double lat, double lon)
     {
         try
         {
+            if (IsCourseCached(courseName) && !IsCourseCached(courseName, lat, lon))
+            {
+                GD.Print($"{LogPrefix} Skipping user cache for '{courseName}' because that name is already cached at a different location.");
+                return;
+            }
+
             string slug = GetCourseGeometrySlug(courseName);
             if (string.IsNullOrWhiteSpace(slug)) return;
 
@@ -720,8 +726,13 @@ public partial class OsmMapLoader : Node
 
     private async Task<string> DownloadOsmDataAsync(double lat, double lon, string courseName, bool isCached = false)
     {
-        // 1. Check if pre-packaged or locally cached geometry exists (instant & 0 API calls)
-        string prepackaged = await TryLoadPrepackagedGeometryAsync(courseName);
+        bool hasNamedCache = IsCourseCached(courseName);
+        bool cachedCourse = isCached || IsCourseCached(courseName, lat, lon);
+
+        // Only use name-based geometry when the selected course matches the cached location.
+        string prepackaged = cachedCourse || !hasNamedCache
+            ? await TryLoadPrepackagedGeometryAsync(courseName)
+            : "";
         if (!string.IsNullOrWhiteSpace(prepackaged))
         {
             ReportProgress($"Loaded pre-packaged map data for '{courseName}' (0 API calls)...");
@@ -729,7 +740,7 @@ public partial class OsmMapLoader : Node
         }
 
         // If this course is marked cached (or has cached geometry registered), never query OpenStreetMap Overpass
-        if (isCached || IsCourseCached(courseName))
+        if (cachedCourse)
         {
             GD.PrintErr($"{LogPrefix} Cached geometry for '{courseName}' was requested but could not be loaded from local files. OpenStreetMap Overpass will NOT be queried for cached courses.");
             _generationMessage = $"Error: Cached map geometry for '{courseName}' could not be loaded from local files. OpenStreetMap was not queried.";
@@ -777,7 +788,7 @@ public partial class OsmMapLoader : Node
                     string result = await response.Content.ReadAsStringAsync();
                     if (!string.IsNullOrWhiteSpace(result))
                     {
-                        TrySaveUserCachedGeometry(courseName, result);
+                        TrySaveUserCachedGeometry(courseName, result, lat, lon);
                         return result;
                     }
                 }
@@ -3696,7 +3707,7 @@ public partial class OsmMapLoader : Node
                     dict["hole_count"] = item.HoleCount;
                     dict["last_updated"] = item.LastUpdated;
                     dict["is_catalog"] = item.IsCatalog;
-                    dict["is_cached"] = IsCourseCached(item.Name);
+                    dict["is_cached"] = IsCourseCached(item.Name, item.Lat, item.Lon);
                     dict["is_pga_tour"] = item.IsPgaTour;
                     godotResults.Add(dict);
                 }
@@ -3827,6 +3838,16 @@ public partial class OsmMapLoader : Node
             }
         }
         return false;
+    }
+
+    private bool IsCourseCached(string courseName, double lat, double lon)
+    {
+        if (!IsCourseCached(courseName) || lat == 0.0 || lon == 0.0)
+            return false;
+
+        return LoadBundledCatalog().Any(course =>
+            string.Equals(course.Name, courseName, StringComparison.OrdinalIgnoreCase) &&
+            HaversineDistanceMeters(course.Lat, course.Lon, lat, lon) <= 1500.0);
     }
 
     public Godot.Collections.Array SearchCachedCourses(string queryText)
@@ -4343,6 +4364,7 @@ public partial class OsmMapLoader : Node
             {
                 sb.AppendLine(CultureInfo.InvariantCulture, $"  nwr(around:500, {c.Lat}, {c.Lon})[\"leisure\"=\"golf_course\"];");
             }
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  nwr(around:500, {c.Lat}, {c.Lon})[\"golf\"=\"course\"];");
             foreach (var ct in customTagList)
             {
                 int sep = ct.IndexOfAny(new[] { '=', ':' });
@@ -4466,7 +4488,7 @@ public partial class OsmMapLoader : Node
                                 }
                             }
 
-                            if (leisureVal == "golf_course" || !requireLeisureGolf || customTagList.Count > 0)
+                            if (leisureVal == "golf_course" || golfVal == "course" || !requireLeisureGolf || customTagList.Count > 0)
                             {
                                 if (tagsProp.TryGetProperty("golf:holes", out var ghProp) && int.TryParse(ghProp.GetString(), out int gh))
                                     c.BoundaryHoles = gh;
