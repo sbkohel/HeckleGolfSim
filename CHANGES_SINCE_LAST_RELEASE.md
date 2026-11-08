@@ -36,3 +36,6 @@
 - Reduce tee-shot flight stuttering by skipping the hidden main view's duplicate course rendering.
 - Improve tee-shot flight smoothness by reducing extra rendering and updating only the moving end of the tracer.
 - Further reduce tee-shot flight rendering load while preserving the flight view's on-screen size.
+- Update the tee-shot tracer less often while keeping the ball marker moving smoothly during flight.
+- Turn off the overhead tee-shot view from the Gameplay settings when you prefer the standard course view.
+- Fixed a script parsing issue when reading the overhead tee-shot setting.

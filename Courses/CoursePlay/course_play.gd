@@ -82,6 +82,8 @@ var range_ui: Control = null
 var _tee_shot_view: Control = null
 var _tee_shot_canvas: CanvasLayer = null
 var _tee_shot_flight_active: bool = false
+var _tee_shot_tracer_update_elapsed: float = 0.0
+const TEE_SHOT_TRACER_UPDATE_INTERVAL := 0.05
 var _hud_visible_before_tee_shot: bool = true
 var top_bar: HBoxContainer = null
 var right_panel: VBoxContainer = null
@@ -5266,8 +5268,16 @@ func _on_game_over(scores: Array) -> void:
 	GlobalSettings.play_golf_clap()
 
 
-func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed: bool) -> void:
+func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed: bool, delta: float) -> void:
 	if _tee_shot_view == null or ball == null:
+		return
+	var tee_shot_view_enabled: bool = bool(GlobalSettings.range_settings.tee_shot_view_enabled.value)
+	if not tee_shot_view_enabled:
+		ball.set("tee_shot_view", null)
+		if _tee_shot_flight_active:
+			_tee_shot_view.hide_shot(true)
+			_tee_shot_flight_active = false
+			_tee_shot_tracer_update_elapsed = 0.0
 		return
 	ball.set("tee_shot_view", _tee_shot_view)
 	var main_camera := course_instance.get_node_or_null("Camera3D") as Camera3D if course_instance != null else null
@@ -5279,12 +5289,14 @@ func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed:
 		if _tee_shot_flight_active:
 			_tee_shot_view.hide_shot()
 			_tee_shot_flight_active = false
+			_tee_shot_tracer_update_elapsed = 0.0
 		return
 
 	if not bool(ball.get("shot_was_from_teebox")):
 		if _tee_shot_flight_active:
 			_tee_shot_view.hide_shot()
 			_tee_shot_flight_active = false
+			_tee_shot_tracer_update_elapsed = 0.0
 		return
 
 	_tee_shot_flight_active = true
@@ -5301,11 +5313,16 @@ func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed:
 	if ball_is_moving:
 		if not _tee_shot_view.visible:
 			_tee_shot_view.show_shot(start_pos, current_pos, target_pos)
-		var player_node := course_instance.get_node_or_null("Player") as Node3D if course_instance != null else null
-		var current_tracer: Node = player_node.get("current_tracer") if player_node != null else null
-		var tracer_points: Array = current_tracer.get("points") if current_tracer != null and is_instance_valid(current_tracer) else []
-		var player_transform := player_node.global_transform if player_node != null else Transform3D.IDENTITY
-		_tee_shot_view.update_tracer(tracer_points, player_transform, start_pos, current_pos)
+			_tee_shot_tracer_update_elapsed = TEE_SHOT_TRACER_UPDATE_INTERVAL
+		_tee_shot_view.update_ball_position(current_pos)
+		_tee_shot_tracer_update_elapsed += delta
+		if _tee_shot_tracer_update_elapsed >= TEE_SHOT_TRACER_UPDATE_INTERVAL:
+			_tee_shot_tracer_update_elapsed = 0.0
+			var player_node := course_instance.get_node_or_null("Player") as Node3D if course_instance != null else null
+			var current_tracer: Node = player_node.get("current_tracer") if player_node != null else null
+			var tracer_points: Array = current_tracer.get("points") if current_tracer != null and is_instance_valid(current_tracer) else []
+			var player_transform := player_node.global_transform if player_node != null else Transform3D.IDENTITY
+			_tee_shot_view.update_tracer(tracer_points, player_transform, start_pos, current_pos)
 
 
 func _on_tee_shot_split_started() -> void:
@@ -5351,7 +5368,7 @@ func _process(_delta: float) -> void:
 				som.call("set_putter_active", is_default_club_putter())
 				som.call("on_ready_for_shot")
 
-	_update_tee_shot_view(ball, ball_is_moving, ball_state_changed)
+	_update_tee_shot_view(ball, ball_is_moving, ball_state_changed, _delta)
 
 	if mulligan_btn != null and mulligan_btn.visible:
 		if _is_online_match():
