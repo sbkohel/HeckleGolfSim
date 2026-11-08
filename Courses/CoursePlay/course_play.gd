@@ -79,9 +79,10 @@ var _player_map_markers: Dictionary = {}
 var _cached_player_textures: Dictionary = {}
 
 var range_ui: Control = null
-var _tee_shot_view: PanelContainer = null
+var _tee_shot_view: Control = null
 var _tee_shot_canvas: CanvasLayer = null
 var _tee_shot_flight_active: bool = false
+var _hud_visible_before_tee_shot: bool = true
 var top_bar: HBoxContainer = null
 var right_panel: VBoxContainer = null
 var toggles_scroll: ScrollContainer = null
@@ -255,6 +256,8 @@ func _setup_hud() -> void:
 
 	_tee_shot_view = TeeShotView.new()
 	_tee_shot_canvas.add_child(_tee_shot_view)
+	_tee_shot_view.connect("split_started", Callable(self, "_on_tee_shot_split_started"))
+	_tee_shot_view.connect("split_closed", Callable(self, "_on_tee_shot_split_closed"))
 	
 	mulligan_confirm_dialog = PanelContainer.new()
 	mulligan_confirm_dialog.name = "MulliganConfirmDialog"
@@ -5267,6 +5270,8 @@ func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed:
 	if _tee_shot_view == null or ball == null:
 		return
 	ball.set("tee_shot_view", _tee_shot_view)
+	var main_camera := course_instance.get_node_or_null("Camera3D") as Camera3D if course_instance != null else null
+	_tee_shot_view.call("set_main_camera", main_camera)
 	if _minimap_panel != null and is_instance_valid(_minimap_panel):
 		_tee_shot_view.set_minimap_rect(_minimap_panel.get_global_rect())
 
@@ -5301,6 +5306,16 @@ func _update_tee_shot_view(ball: Node, ball_is_moving: bool, ball_state_changed:
 		var tracer_points: Array = current_tracer.get("points") if current_tracer != null and is_instance_valid(current_tracer) else []
 		var player_transform := player_node.global_transform if player_node != null else Transform3D.IDENTITY
 		_tee_shot_view.update_tracer(tracer_points, player_transform, start_pos, current_pos)
+
+
+func _on_tee_shot_split_started() -> void:
+	_hud_visible_before_tee_shot = _hud_elements_visible
+	_set_other_elements_visible(false)
+
+
+func _on_tee_shot_split_closed() -> void:
+	if _hud_visible_before_tee_shot:
+		_set_other_elements_visible(true)
 
 
 func _process(_delta: float) -> void:
