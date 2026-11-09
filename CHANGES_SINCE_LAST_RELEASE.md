@@ -32,7 +32,7 @@
 - Expand the tee-shot window before playing the hit sound and launching the ball, and clear the previous flight tracer before the next expansion.
 - Keep the tee-shot window visible through its full closing animation when the ball comes to rest, including multiplayer turn changes.
 - Allow the tee-shot inset content to shrink with the window instead of forcing an immediate return to minimap size.
-- Show tee shots in a temporary split-screen view, with the course taking the left two-thirds and the behind-the-tee flight view on the right; restore the normal screen and HUD after the shot.
+- Show the behind-the-tee view full-screen during tee shots, then return to the course view and restore the HUD after the shot.
 - Reduce tee-shot flight stuttering by skipping the hidden main view's duplicate course rendering.
 - Improve tee-shot flight smoothness by reducing extra rendering and updating only the moving end of the tracer.
 - Further reduce tee-shot flight rendering load while preserving the flight view's on-screen size.
